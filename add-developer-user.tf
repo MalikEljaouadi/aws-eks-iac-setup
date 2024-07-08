@@ -23,7 +23,7 @@ resource "aws_iam_policy" "developer_eks" {
 }
 
 # attach the following policy to the previously defined user
-resource "aws_iam_role_policy_attachment" "developer_eks" {
+resource "aws_iam_user_policy_attachment" "developer_eks" {
   user = aws_iam_user.developer.name
   policy_arn = aws_iam_policy.developer_eks.arn
 }
