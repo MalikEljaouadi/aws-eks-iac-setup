@@ -12,7 +12,7 @@ resource "aws_iam_role" "eks_admin" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          "AWS" :"arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" # in this way, all the users in that aws account will get access to that role
+          "AWS" : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" # in this way, all the users in that aws account will get access to that role
         }
       },
     ]
@@ -62,7 +62,7 @@ resource "aws_iam_policy" "eks_assume_admin" {
 
 # we attach the policy 'eks_assume_admin' to the assuming user 'manager'
 resource "aws_iam_user_policy_attachment" "manager" {
-  user = aws_iam_user.manager.name
+  user       = aws_iam_user.manager.name
   policy_arn = aws_iam_policy.eks_assume_admin.arn
 }
 
