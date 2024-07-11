@@ -3,3 +3,5 @@ This repo aims to create a state of the art AWS EKS cluster using Terraform as a
 
 ## TODO: 
 - [ ] Add diagrams
+- [ ] Add guided explanation
+- [ ] Reconsidere structuring the project
