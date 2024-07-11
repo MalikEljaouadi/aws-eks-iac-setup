@@ -13,9 +13,9 @@ data "aws_iam_policy_document" "aws_lbc" {
     }
 
     actions = [
-        "sts:AssumeRole",
-        "sts:TagSession"
-        ]
+      "sts:AssumeRole",
+      "sts:TagSession"
+    ]
   }
 }
 
@@ -27,7 +27,7 @@ resource "aws_iam_role" "aws_lbc" {
 
 # creating the policy
 resource "aws_iam_policy" "aws_lbc" {
-  name        = "AWSLoadBalancerController"
+  name   = "AWSLoadBalancerController"
   policy = file("./iam/AWSLoadBalancerController.json")
 }
 
@@ -50,7 +50,7 @@ resource "helm_release" "aws_lbc" {
   name       = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
-  namespace = "kube-system"
+  namespace  = "kube-system"
   version    = "1.7.2"
 
   set {
