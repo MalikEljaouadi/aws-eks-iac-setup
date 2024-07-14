@@ -1,21 +1,21 @@
 # creating the efs file system on AWS
 resource "aws_efs_file_system" "eks" {
-  creation_token = "eks"
-performance_mode = "generalPurpose"
-throughput_mode="bursting"
-encrypted=true
+  creation_token   = "eks"
+  performance_mode = "generalPurpose"
+  throughput_mode  = "bursting"
+  encrypted        = true
 }
 
 # creating an mount target in each subnet (where we deployed our k8s workers)
 resource "aws_efs_mount_target" "zone_a" {
-  file_system_id = aws_efs_file_system.eks.id
-  subnet_id      = aws_subnet.private_subnet_zone1.id
+  file_system_id  = aws_efs_file_system.eks.id
+  subnet_id       = aws_subnet.private_subnet_zone1.id
   security_groups = [aws_eks_cluster.eks.vpc_config[0].cluster_security_group_id] # we are using the security group that was created by EKS itself when we provisioned the cluster
 }
 #the other efs mount target in the 2nd private subnet
 resource "aws_efs_mount_target" "zone_b" {
-  file_system_id = aws_efs_file_system.eks.id
-  subnet_id      = aws_subnet.private_subnet_zone2.id
+  file_system_id  = aws_efs_file_system.eks.id
+  subnet_id       = aws_subnet.private_subnet_zone2.id
   security_groups = [aws_eks_cluster.eks.vpc_config[0].cluster_security_group_id] # we are using the security group that was created by EKS itself when we provisioned the cluster
 }
 
@@ -34,22 +34,22 @@ data "aws_iam_policy_document" "efs_csi_driver" {
     }
   }
 
-  principals{
-    identifiers=[aws_iam_openid_connect_provider.eks.arn]
-    type = "Federated"
+  principals {
+    identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    type        = "Federated"
   }
 }
 
 # creating a role where will attach the trust policy
 resource "aws_iam_role" "efs_csi_driver" {
-  name   = "${aws_eks_cluster.eks.name}-efs-csi-driver"
+  name               = "${aws_eks_cluster.eks.name}-efs-csi-driver"
   assume_role_policy = data.aws_iam_policy_document.efs_csi_driver.json
 }
 
 # attaching the trust policy to the IAM role: we are using the only policy that AWS manages for the CSI driver
-resource "aws_iam_role_policy_attachment" "efs_csi_driver"{
-    policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
-    role. = aws_iam_role.efs_csi_driver.name
+resource "aws_iam_role_policy_attachment" "efs_csi_driver" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
+  role       = aws_iam_role.efs_csi_driver.name
 }
 
 # deploying the efs csi driver into the EKS cluster
@@ -57,7 +57,7 @@ resource "helm_release" "efs_csi_driver" {
   name       = "aws-efs-csi-driver"
   repository = "https://kubernetes-sigs.github.io/aws-efs-csi-driver/"
   chart      = "aws-efs-csi-driver"
-  namespace = "kube-system"
+  namespace  = "kube-system"
   version    = "3.0.3"
 
   set {
@@ -70,8 +70,29 @@ resource "helm_release" "efs_csi_driver" {
     value = aws_iam_role.efs_csi_driver.arn # link k8s service account to the aws IAM role using its arn
   }
 
-  depends_on=[
+  depends_on = [
     aws_efs_mount_target.zone_a,
     aws_efs_mount_target.zone_b
   ]
+}
+
+# intializing the k8s provider and use the same data resources that we used before to intialize Helm
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.eks.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster.eks.token
+}
+
+# craeting a custom k8s storage class that uses the efs file system (using this new k8s provider)
+resource "kubernetes_storage_class" "efs" {
+  metadata {
+    name = "efs"
+  }
+  storage_provisioner = "efs.csi.aws.com"
+  parameters = {
+    provisioningMode = "efs-ap"
+    fileSystemId     = aws_efs_file_system.eks.id
+    directoryPerms   = "700"
+  }
+  mount_options = ["iam"]
 }
