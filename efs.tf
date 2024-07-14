@@ -51,3 +51,27 @@ resource "aws_iam_role_policy_attachment" "efs_csi_driver"{
     policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
     role. = aws_iam_role.efs_csi_driver.name
 }
+
+# deploying the efs csi driver into the EKS cluster
+resource "helm_release" "efs_csi_driver" {
+  name       = "aws-efs-csi-driver"
+  repository = "https://kubernetes-sigs.github.io/aws-efs-csi-driver/"
+  chart      = "aws-efs-csi-driver"
+  namespace = "kube-system"
+  version    = "3.0.3"
+
+  set {
+    name  = "controller.serviceAccount.name"
+    value = "efs-csi-controller-sa" # specifying the service account name
+  }
+
+  set {
+    name  = "controller.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.efs_csi_driver.arn # link k8s service account to the aws IAM role using its arn
+  }
+
+  depends_on=[
+    aws_efs_mount_target.zone_a,
+    aws_efs_mount_target.zone_b
+  ]
+}
